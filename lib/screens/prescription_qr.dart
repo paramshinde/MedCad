@@ -4,7 +4,7 @@ import '../models/prescription.dart';
 
 class PrescriptionQrScreen extends StatelessWidget {
   final Prescription prescription;
-  const PrescriptionQrScreen({Key? key, required this.prescription}) : super(key: key);
+  const PrescriptionQrScreen({super.key, required this.prescription});
 
   @override
   Widget build(BuildContext context) {

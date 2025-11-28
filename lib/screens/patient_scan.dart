@@ -4,7 +4,7 @@ import '../models/prescription.dart';
 import 'package:intl/intl.dart';
 
 class PatientScanScreen extends StatefulWidget {
-  const PatientScanScreen({Key? key}) : super(key: key);
+  const PatientScanScreen({super.key});
 
   @override
   State<PatientScanScreen> createState() => _PatientScanScreenState();

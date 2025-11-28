@@ -3,6 +3,7 @@ plugins {
     id("kotlin-android") // keep kotlin android plugin id as you had
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -18,6 +19,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        minSdkVersion = 21
     }
 
     // Kotlin DSL style compileOptions
@@ -48,6 +50,8 @@ dependencies {
     // Add only the desugaring library here (Kotlin DSL syntax)
     // This enables Java 8+ core lib APIs required by some plugins
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
+    implementation("com.google.firebase:firebase-analytics")
 
     // Note: do NOT add implementation/kotlin-stdlib here unless required by your project.
     // The Flutter plugin brings the necessary deps for the Android module.

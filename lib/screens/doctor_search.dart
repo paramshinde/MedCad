@@ -4,7 +4,7 @@ import 'package:flutter_typeahead/flutter_typeahead.dart';
 import '../services/rxnorm_service.dart';
 
 class DoctorMedSearchScreen extends StatefulWidget {
-  const DoctorMedSearchScreen({Key? key}) : super(key: key);
+  const DoctorMedSearchScreen({super.key});
 
   @override
   State<DoctorMedSearchScreen> createState() => _DoctorMedSearchScreenState();

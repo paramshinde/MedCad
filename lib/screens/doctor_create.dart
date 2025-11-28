@@ -7,7 +7,7 @@ import '../services/rxnorm_service.dart';
 import 'doctor_search.dart';
 
 class DoctorCreateScreen extends StatefulWidget {
-  const DoctorCreateScreen({Key? key}) : super(key: key);
+  const DoctorCreateScreen({super.key});
 
   @override
   State<DoctorCreateScreen> createState() => _DoctorCreateScreenState();

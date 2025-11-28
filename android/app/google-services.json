@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1096792132702",
+    "project_id": "medcad",
+    "storage_bucket": "medcad.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1096792132702:android:0d8e37dcffb64f78af38cf",
+        "android_client_info": {
+          "package_name": "com.example.medcad"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCTIk22uINNdHOo3UQIEtQ7A4-HKKTzIFU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
