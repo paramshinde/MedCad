@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/prescription.dart';
 import 'prescription_qr.dart';
-import '../services/rxnorm_service.dart';
-import 'doctor_search.dart';
+// removed rxnorm_service import since we're using Firestore search screen
+// import '../services/rxnorm_service.dart';
+import 'doctor_med_search.dart'; // <-- new search screen
+import '../models/medicine_model.dart'; // <-- medicine model returned by search
 
 class DoctorCreateScreen extends StatefulWidget {
   const DoctorCreateScreen({super.key});
@@ -97,6 +99,37 @@ class _DoctorCreateScreenState extends State<DoctorCreateScreen> {
     super.dispose();
   }
 
+  Future<void> _openSearchAndAdd() async {
+    // Opens the Firestore-powered search screen and returns a MedicineModel
+    final MedicineModel? selected = await Navigator.push<MedicineModel?>(
+      context,
+      MaterialPageRoute(builder: (_) => const DoctorMedSearchScreen()),
+    );
+
+    if (selected != null) {
+      setState(() {
+        // Add to your local Medicine model. If your Medicine accepts rxcui or raw, adapt accordingly.
+        medicines.add(Medicine(
+          name: selected.name,
+          dose: '',
+          times: ['08:00', '20:00'],
+          durationDays: 5,
+          notes: '',
+          // If the Firestore document contains an rxcui field, it might be at selected.raw?['rxcui']
+          // rxcui: selected.raw?['rxcui'],
+        ));
+
+        // Prefill med name field for quick editing by the doctor
+        _medNameCtrl.text = selected.name;
+
+        // Optionally show feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${selected.name} added')),
+        );
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -148,26 +181,7 @@ class _DoctorCreateScreenState extends State<DoctorCreateScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () async {
-                            final RxDrug? result = await Navigator.push<RxDrug?>(
-                              context,
-                              MaterialPageRoute(builder: (_) => const DoctorMedSearchScreen()),
-                            );
-
-                            if (result != null) {
-                              setState(() {
-                                medicines.add(Medicine(
-                                  name: result.name,
-                                  dose: '',
-                                  times: ['08:00', '20:00'],
-                                  durationDays: 5,
-                                  notes: '',
-                                  rxcui: result.rxCui,
-                                ));
-                                _medNameCtrl.text = result.name;
-                              });
-                            }
-                          },
+                          onPressed: _openSearchAndAdd,
                           icon: const Icon(Icons.search),
                           label: const Text('Add Medicine (Search)'),
                         ),
@@ -216,26 +230,7 @@ class _DoctorCreateScreenState extends State<DoctorCreateScreen> {
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () async {
-                            final RxDrug? result = await Navigator.push<RxDrug?>(
-                              context,
-                              MaterialPageRoute(builder: (_) => const DoctorMedSearchScreen()),
-                            );
-
-                            if (result != null) {
-                              setState(() {
-                                medicines.add(Medicine(
-                                  name: result.name,
-                                  dose: '',
-                                  times: ['08:00', '20:00'],
-                                  durationDays: 5,
-                                  notes: '',
-                                  rxcui: result.rxCui,
-                                ));
-                                _medNameCtrl.text = result.name;
-                              });
-                            }
-                          },
+                          onPressed: _openSearchAndAdd,
                           icon: const Icon(Icons.search),
                           label: const Text('Add Medicine (Search)'),
                         ),

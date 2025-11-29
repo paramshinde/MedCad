@@ -1,164 +1,158 @@
-# import_meds_from_excel.py
+# slow_import_daily.py
+"""
+Very-slow Firestore importer for free-tier:
+ - Resumes via checkpoint
+ - Uploads at most MAX_DAILY_WRITES per run (default 10000)
+ - Small BATCH_SIZE with sleep between batches to avoid throttling
+ - Exponential backoff on ResourceExhausted
+"""
+
 import os
 import json
-import math
-from glob import glob
+import time
 import pandas as pd
 import firebase_admin
 from firebase_admin import credentials, firestore
 from slugify import slugify
-from datetime import datetime
+from google.api_core import exceptions as google_exceptions
 
 # ========== CONFIG ==========
-SERVICE_ACCOUNT = "serviceAccountKey.json"  # <- update
-EXCEL_PATH = "updated_indian_medicine_data.csv"         # <- update
-SHEET_NAME = None  # or sheet name if needed
-COL_MAP = {
-    # map expected file columns to target doc fields
-    "id": "source_id",
-    "name": "name",
-    "price": "price",
-    "Is_disconti": "is_discontinued",
-    "manufactur": "manufacturer",
-    "type": "type",
-    "pack_size_l": "pack_size",
-    "short_comp": "short_composition",
-    "salt_composition": "salt_composition",
-    "medicine_c_side_effect": "side_effects",
-    "drug_interactions": "drug_interactions",
-    # add other columns if available...
-}
+SERVICE_ACCOUNT = r"E:\medcad\serviceAccountKey.json"   # <-- update
+CSV_PATH = r"E:\medcad\updated_indian_medicine_data.csv"  # <-- update
 TARGET_COLLECTION = "medicines"
-BATCH_SIZE = 450  # keep < 500
-# ===========================
 
-# Init Firebase
+# Very conservative settings for free-tier
+BATCH_SIZE = 25                 # small batch to reduce burst
+SLEEP_BETWEEN_BATCHES = 5.0     # seconds pause after each batch
+MAX_DAILY_WRITES = 10000        # max writes this run (stay under free-tier daily cap)
+CHECKPOINT_FILE = "import_checkpoint.json"
+MAX_RETRY_ATTEMPTS = 10
+RETRY_BASE_SLEEP = 5.0
+# ============================
+
+# Init Firebase Admin
 cred = credentials.Certificate(SERVICE_ACCOUNT)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 col_ref = db.collection(TARGET_COLLECTION)
 
-def load_excel(path, sheet_name=None):
-    df = pd.read_excel(path, sheet_name=sheet_name, engine="openpyxl")
-    df = df.fillna("")  # replace NaN with empty string
+def load_csv(path):
+    df = pd.read_csv(path)
+    df = df.fillna("")
     return df
 
+def split_values(val):
+    if not val:
+        return []
+    return [x.strip() for x in str(val).replace("/", ",").replace(";", ",").split(",") if x.strip()]
+
 def transform_row(row):
-    # row is a pandas Series
-    doc = {}
-    for src_col, target in COL_MAP.items():
-        if src_col in row.index:
-            doc[target] = row[src_col]
-        else:
-            doc[target] = ""  # default
-
-    # Normalize types and text
-    # Ensure name is string
-    doc['name'] = str(doc.get('name') or "").strip()
-    doc['name_lower'] = doc['name'].lower()
-    # Add slug/id
-    if doc.get('source_id'):
-        doc_id = str(doc['source_id'])
-    else:
-        doc_id = slugify(doc['name']) or None
-
-    # Compose aliases from short_comp or comma separated names if present
-    aliases = set()
-    sc = str(doc.get('short_composition') or "")
-    if sc:
-        # sometimes short_comp contains alternative names; split by comma or '/'
-        for part in [p.strip() for p in re_split_comma(sc)]:
-            if part:
-                aliases.add(part)
-    # include name variations
-    aliases.add(doc['name'])
-    doc['aliases'] = list(aliases)
-
-    # Side effects & interactions: try to keep as list if comma separated
-    doc['side_effects'] = split_to_list(doc.get('side_effects'))
-    doc['drug_interactions'] = parse_jsonish(doc.get('drug_interactions'))
-
-    # price: convert to float if possible
-    try:
-        doc['price'] = float(str(doc.get('price') or "").strip())
-    except:
-        doc['price'] = None
-
-    # timestamps
-    doc['createdAt'] = firestore.SERVER_TIMESTAMP
-    doc['updatedAt'] = firestore.SERVER_TIMESTAMP
-
+    name = str(row.get("name", "")).strip()
+    doc_id = slugify(name) or None
+    doc = {
+        "name": name,
+        "name_lower": name.lower(),
+        "price": row.get("price", ""),
+        "manufacturer": row.get("manufactur", ""),
+        "type": row.get("type", ""),
+        "pack_size": row.get("pack_size_l", ""),
+        "short_composition": row.get("short_comp", ""),
+        "salt_composition": row.get("salt_composition", ""),
+        "side_effects": split_values(row.get("medicine_c_side_effect")),
+        "drug_interactions": split_values(row.get("drug_interactions")),
+        "createdAt": firestore.SERVER_TIMESTAMP,
+        "updatedAt": firestore.SERVER_TIMESTAMP,
+    }
     return doc_id, doc
 
-def re_split_comma(text):
-    # helper: split by comma, semicolon, slash, ' + ' etc.
-    import re
-    parts = re.split(r'[,/;|+]', str(text))
-    return [p.strip() for p in parts if p and p.strip()]
+def read_checkpoint():
+    if os.path.exists(CHECKPOINT_FILE):
+        with open(CHECKPOINT_FILE, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    return {"last_row_index": 0, "rows_processed_total": 0}
 
-def split_to_list(value):
-    if not value:
-        return []
-    if isinstance(value, (list, tuple)):
-        return list(value)
-    # split by common separators
-    parts = re_split_comma(value)
-    return parts
+def write_checkpoint(last_row_index, rows_processed_total):
+    tmp = {"last_row_index": last_row_index, "rows_processed_total": rows_processed_total}
+    with open(CHECKPOINT_FILE + ".tmp", "w", encoding="utf-8") as fh:
+        json.dump(tmp, fh)
+    os.replace(CHECKPOINT_FILE + ".tmp", CHECKPOINT_FILE)
 
-def parse_jsonish(value):
-    # sometimes drug_interactions column may contain JSON-like text; try to load
-    if not value:
-        return []
-    v = str(value).strip()
-    try:
-        # try JSON
-        obj = json.loads(v)
-        return obj
-    except:
-        # fallback to splitting
-        return split_to_list(v)
-
-def chunked_iterable(iterable, size):
-    it = iter(iterable)
+def commit_with_retry(batch, batch_no):
+    attempt = 0
     while True:
-        chunk = []
         try:
-            for _ in range(size):
-                chunk.append(next(it))
-        except StopIteration:
-            if chunk:
-                yield chunk
-            break
-        yield chunk
+            batch.commit()
+            return
+        except google_exceptions.ResourceExhausted as e:
+            attempt += 1
+            if attempt > MAX_RETRY_ATTEMPTS:
+                raise
+            sleep_for = RETRY_BASE_SLEEP * (2 ** (attempt - 1))
+            print(f"[WARN] Batch {batch_no}: ResourceExhausted. Sleeping {sleep_for:.1f}s (attempt {attempt})")
+            time.sleep(sleep_for)
+        except google_exceptions.GoogleAPICallError as e:
+            attempt += 1
+            if attempt > MAX_RETRY_ATTEMPTS:
+                raise
+            sleep_for = RETRY_BASE_SLEEP * (2 ** (attempt - 1))
+            print(f"[WARN] Batch {batch_no}: API error {e}. Sleeping {sleep_for:.1f}s (attempt {attempt})")
+            time.sleep(sleep_for)
 
-def upload_docs(docs_iter):
+def run_once():
+    print("Loading CSV:", CSV_PATH)
+    df = load_csv(CSV_PATH)
+    total_rows = len(df)
+    print("Total rows in CSV:", total_rows)
+
+    checkpoint = read_checkpoint()
+    start_idx = checkpoint.get("last_row_index", 0)
+    processed_total = checkpoint.get("rows_processed_total", 0)
+
+    print(f"Resuming from row index {start_idx}, previously processed total {processed_total}")
+
+    max_to_do = MAX_DAILY_WRITES
+    rows_done_this_run = 0
+    batch_no = 0
+
+    idx = start_idx
+    batch = db.batch()
     batch_count = 0
-    for chunk in chunked_iterable(docs_iter, BATCH_SIZE):
-        batch = db.batch()
-        for doc_id, doc in chunk:
-            # if doc_id is None or empty, use auto-ID
-            if doc_id:
-                # keep doc IDs unique; if duplicates occur, we can append a suffix
-                doc_ref = col_ref.document(doc_id)
-                batch.set(doc_ref, doc, merge=True)
-            else:
-                doc_ref = col_ref.document()
-                batch.set(doc_ref, doc, merge=True)
-        batch.commit()
-        batch_count += 1
-        print(f"Committed batch {batch_count}, size {len(chunk)}")
 
-def main():
-    print("Loading Excel:", EXCEL_PATH)
-    df = load_excel(EXCEL_PATH, SHEET_NAME)
-    print("Rows read:", len(df))
-    docs = []
-    for idx, row in df.iterrows():
+    while idx < total_rows and rows_done_this_run < max_to_do:
+        row = df.iloc[idx]
         doc_id, doc = transform_row(row)
-        docs.append((doc_id, doc))
-    print("Transformed docs:", len(docs))
-    upload_docs(iter(docs))
-    print("Done.")
+
+        if doc_id:
+            batch.set(col_ref.document(doc_id), doc)
+        else:
+            batch.set(col_ref.document(), doc)
+
+        batch_count += 1
+        idx += 1
+        rows_done_this_run += 1
+        processed_total += 1
+
+        if batch_count >= BATCH_SIZE:
+            print(f"Committing batch {batch_no} (rows in batch: {batch_count}). Total processed this run: {rows_done_this_run}/{max_to_do}")
+            commit_with_retry(batch, batch_no)
+            write_checkpoint(idx, processed_total)
+            batch_no += 1
+            batch = db.batch()
+            batch_count = 0
+            time.sleep(SLEEP_BETWEEN_BATCHES)
+
+    # commit leftover
+    if batch_count > 0 and rows_done_this_run <= max_to_do:
+        print(f"Committing final batch {batch_no} (rows: {batch_count}).")
+        commit_with_retry(batch, batch_no)
+        write_checkpoint(idx, processed_total)
+
+    print(f"Run complete. Processed this run: {rows_done_this_run}. Total processed overall: {processed_total}. Next start index: {idx}")
+    if idx >= total_rows:
+        print("All rows processed. You are done.")
+    else:
+        remaining = total_rows - idx
+        print(f"Rows remaining: {remaining}. Re-run the script tomorrow to continue.")
 
 if __name__ == "__main__":
-    main()
+    run_once()
