@@ -67,7 +67,7 @@ def transform_row(row):
 
 def read_checkpoint():
     if os.path.exists(CHECKPOINT_FILE):
-        with open(CHECKPOINT_FILE, "r", encoding="utf-8") as fh:
+        with open(CHECKPOINT_FILE, "r", encoding='utf-8-sig') as fh:
             return json.load(fh)
     return {"last_row_index": 0, "rows_processed_total": 0}
 
