@@ -10,7 +10,7 @@ class MedicineFirestoreService {
 
     final snap = await _col
         .where('name_lower', isGreaterThanOrEqualTo: q)
-        .where('name_lower', isLessThan: q + '\uf8ff')
+        .where('name_lower', isLessThan: '$q\uf8ff')
         .limit(40)
         .get();
 

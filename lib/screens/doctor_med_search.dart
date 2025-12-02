@@ -3,7 +3,7 @@ import '../services/medicine_firestore_service.dart';
 import '../models/medicine_model.dart';
 
 class DoctorMedSearchScreen extends StatefulWidget {
-  const DoctorMedSearchScreen({Key? key}) : super(key: key);
+  const DoctorMedSearchScreen({super.key});
 
   @override
   State<DoctorMedSearchScreen> createState() => _DoctorMedSearchScreenState();
