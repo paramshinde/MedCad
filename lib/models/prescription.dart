@@ -1,82 +1,65 @@
-// lib/models/prescription.dart
-import 'dart:convert';
+class Prescription {
+  final String id;
+  final String patientId;
+  final List<PrescriptionMedicine> medicines;
+  final String notes;
 
-class Medicine {
-  String name;
-  String dose;
-  List<String> times; // format "08:00"
-  int durationDays;
-  String notes;
-  String? rxcui; // <-- new optional RxNorm identifier
+  Prescription({
+    required this.id,
+    required this.patientId,
+    required this.medicines,
+    required this.notes,
+  });
 
-  Medicine({
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'patientId': patientId,
+      'notes': notes,
+      'medicines': medicines.map((m) => m.toMap()).toList(),
+    };
+  }
+
+  factory Prescription.fromMap(Map<String, dynamic> map) {
+    return Prescription(
+      id: map['id'],
+      patientId: map['patientId'],
+      notes: map['notes'] ?? '',
+      medicines: (map['medicines'] as List)
+          .map((m) => PrescriptionMedicine.fromMap(m))
+          .toList(),
+    );
+  }
+}
+
+class PrescriptionMedicine {
+  final String name;
+  final String dose;
+  final List<String> times;
+  final int durationDays;
+
+  PrescriptionMedicine({
     required this.name,
     required this.dose,
     required this.times,
     required this.durationDays,
-    this.notes = '',
-    this.rxcui,
   });
 
-  factory Medicine.fromJson(Map<String, dynamic> json) => Medicine(
-        name: json['name'] ?? '',
-        dose: json['dose'] ?? '',
-        times: List<String>.from(json['times'] ?? []),
-        durationDays: json['duration_days'] ?? 0,
-        notes: json['notes'] ?? '',
-        rxcui: json['rxcui'] as String?,
-      );
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'dose': dose,
+      'times': times,
+      'durationDays': durationDays,
+    };
+  }
 
-  Map<String, dynamic> toJson() => {
-        'name': name,
-        'dose': dose,
-        'times': times,
-        'duration_days': durationDays,
-        'notes': notes,
-        if (rxcui != null) 'rxcui': rxcui,
-      };
-}
-
-
-class Prescription {
-  String id;
-  Map<String, dynamic> doctor;
-  Map<String, dynamic> patient;
-  DateTime issuedAt;
-  List<Medicine> medicines;
-  String notes;
-
-  Prescription({
-    required this.id,
-    required this.doctor,
-    required this.patient,
-    required this.issuedAt,
-    required this.medicines,
-    this.notes = '',
-  });
-
-  factory Prescription.fromJson(Map<String, dynamic> json) => Prescription(
-        id: json['id'] ?? '',
-        doctor: Map<String, dynamic>.from(json['doctor'] ?? {}),
-        patient: Map<String, dynamic>.from(json['patient'] ?? {}),
-        issuedAt: DateTime.parse(json['issued_at'] ?? DateTime.now().toIso8601String()),
-        medicines: (json['medicines'] as List<dynamic>? ?? [])
-            .map((m) => Medicine.fromJson(Map<String, dynamic>.from(m)))
-            .toList(),
-        notes: json['notes'] ?? '',
-      );
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'doctor': doctor,
-        'patient': patient,
-        'issued_at': issuedAt.toIso8601String(),
-        'medicines': medicines.map((m) => m.toJson()).toList(),
-        'notes': notes,
-      };
-
-  String toJsonString() => jsonEncode(toJson());
-
-  static Prescription fromJsonString(String s) =>
-      Prescription.fromJson(jsonDecode(s) as Map<String, dynamic>);
+  factory PrescriptionMedicine.fromMap(Map<String, dynamic> map) {
+    return PrescriptionMedicine(
+      name: map['name'],
+      dose: map['dose'],
+      times: List<String>.from(map['times']),
+      durationDays: map['durationDays'],
+    );
+  }
 }

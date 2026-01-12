@@ -1,25 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'services/notification_service.dart';
-import 'screens/splash_screen.dart';
 
-Future<void> main() async {
+import 'firebase_options.dart';
+
+// Auth
+import 'auth/login_screen.dart';
+import 'auth/register_doctor.dart';
+
+// Screens
+import 'screens/splash_screen.dart';
+import 'screens/doctor_dashboard.dart';
+import 'screens/doctor_create.dart';
+import 'screens/doctor_search.dart';
+import 'screens/doctor_med_search.dart';
+import 'screens/patient_dashboard.dart';
+import 'screens/patient_scan.dart';
+
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (e, st) {
-    debugPrint('Firebase initialization error: $e\n$st');
-  }
-
-  try {
-    await NotificationService.init();
-  } catch (e, st) {
-    debugPrint('NotificationService.init() error: $e\n$st');
-  }
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   runApp(const MedCodeApp());
 }
@@ -31,9 +34,30 @@ class MedCodeApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'MedCode',
-      theme: ThemeData(primarySwatch: Colors.teal),
       debugShowCheckedModeBanner: false,
-      home: const SplashScreen(), //  ROLE-BASED ENTRY POINT
+
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+
+      initialRoute: '/',
+
+      routes: {
+        // Core
+        '/': (context) => const SplashScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/register-doctor': (context) => const RegisterDoctorScreen(),
+
+        // Doctor
+        '/doctor-dashboard': (context) => const DoctorDashboard(),
+        '/doctor-create': (context) => DoctorCreateScreen(),
+        '/doctor-search': (context) => DoctorSearchScreen(),
+        '/doctor-med-search': (context) => DoctorMedSearchScreen(),
+
+        // Patient
+        '/patient-dashboard': (context) => const PatientDashboard(),
+        '/patient-scan': (context) => PatientScanScreen(),
+      },
     );
   }
 }

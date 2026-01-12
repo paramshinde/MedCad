@@ -1,12 +1,10 @@
-// lib/screens/doctor_create.dart
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+
+import '../models/medicine_model.dart';
 import '../models/prescription.dart';
+import 'doctor_med_search.dart';
 import 'prescription_qr.dart';
-// removed rxnorm_service import since we're using Firestore search screen
-// import '../services/rxnorm_service.dart';
-import 'doctor_med_search.dart'; // <-- new search screen
-import '../models/medicine_model.dart'; // <-- medicine model returned by search
 
 class DoctorCreateScreen extends StatefulWidget {
   const DoctorCreateScreen({super.key});
@@ -16,241 +14,166 @@ class DoctorCreateScreen extends StatefulWidget {
 }
 
 class _DoctorCreateScreenState extends State<DoctorCreateScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _docNameCtrl = TextEditingController(text: 'Dr. YourName');
-  final _patientNameCtrl = TextEditingController();
-  final _medNameCtrl = TextEditingController();
-  final _doseCtrl = TextEditingController();
-  final _timesCtrl = TextEditingController(text: '08:00,20:00'); // comma separated
-  final _durationCtrl = TextEditingController(text: '5');
+  final _patientIdCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
-  List<Medicine> medicines = [];
+  final _doseCtrl = TextEditingController();
+  final _daysCtrl = TextEditingController(text: '5');
 
-  void _addMedicine() {
-    final medName = _medNameCtrl.text.trim();
-    if (medName.isEmpty) return;
+  final List<PrescriptionMedicine> _medicines = [];
 
-    final times = _timesCtrl.text
-        .split(',')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-
-    final med = Medicine(
-      name: medName,
-      dose: _doseCtrl.text.trim(),
-      times: times,
-      durationDays: int.tryParse(_durationCtrl.text) ?? 1,
-      notes: '',
-    );
-
-    setState(() {
-      medicines.add(med);
-      _medNameCtrl.clear();
-      _doseCtrl.clear();
-      _timesCtrl.text = '08:00,20:00';
-      _durationCtrl.text = '5';
-    });
+  @override
+  void dispose() {
+    _patientIdCtrl.dispose();
+    _notesCtrl.dispose();
+    _doseCtrl.dispose();
+    _daysCtrl.dispose();
+    super.dispose();
   }
 
-  void _generatePrescription() {
-    // Basic validation
-    if (_patientNameCtrl.text.trim().isEmpty || medicines.isEmpty) {
+  Future<void> _addMedicine() async {
+    final Medicine? selected = await Navigator.push<Medicine?>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const DoctorMedSearchScreen(),
+      ),
+    );
+
+    if (selected == null) return;
+
+    if (_doseCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add patient name and at least one medicine')),
+        const SnackBar(content: Text('Please enter dose')),
       );
       return;
     }
 
-    if (!(_formKey.currentState?.validate() ?? false)) {
+    setState(() {
+      _medicines.add(
+        PrescriptionMedicine(
+          name: selected.name,
+          dose: _doseCtrl.text.trim(),
+          times: const ['Morning', 'Night'],
+          durationDays: int.tryParse(_daysCtrl.text) ?? 5,
+        ),
+      );
+    });
+
+    _doseCtrl.clear();
+  }
+
+  void _generatePrescription() {
+    if (_patientIdCtrl.text.trim().isEmpty || _medicines.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Patient ID and medicines required')),
+      );
       return;
     }
 
-    final id = const Uuid().v4();
-    final presc = Prescription(
-      id: id,
-      doctor: {
-        'id': 'doc_1',
-        'name': _docNameCtrl.text.trim(),
-        'clinic': 'My Clinic'
-      },
-      patient: {'name': _patientNameCtrl.text.trim()},
-      issuedAt: DateTime.now(),
-      medicines: medicines,
+    final prescription = Prescription(
+      id: const Uuid().v4(),
+      patientId: _patientIdCtrl.text.trim(),
+      medicines: _medicines,
       notes: _notesCtrl.text.trim(),
     );
 
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => PrescriptionQrScreen(prescription: presc)),
+      MaterialPageRoute(
+        builder: (_) => PrescriptionQrScreen(prescription: prescription),
+      ),
     );
-  }
-
-  @override
-  void dispose() {
-    _docNameCtrl.dispose();
-    _patientNameCtrl.dispose();
-    _medNameCtrl.dispose();
-    _doseCtrl.dispose();
-    _timesCtrl.dispose();
-    _durationCtrl.dispose();
-    _notesCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _openSearchAndAdd() async {
-    // Opens the Firestore-powered search screen and returns a MedicineModel
-    final MedicineModel? selected = await Navigator.push<MedicineModel?>(
-      context,
-      MaterialPageRoute(builder: (_) => const DoctorMedSearchScreen()),
-    );
-
-    if (selected != null) {
-      setState(() {
-        // Add to your local Medicine model. If your Medicine accepts rxcui or raw, adapt accordingly.
-        medicines.add(Medicine(
-          name: selected.name,
-          dose: '',
-          times: ['08:00', '20:00'],
-          durationDays: 5,
-          notes: '',
-          // If the Firestore document contains an rxcui field, it might be at selected.raw?['rxcui']
-          // rxcui: selected.raw?['rxcui'],
-        ));
-
-        // Prefill med name field for quick editing by the doctor
-        _medNameCtrl.text = selected.name;
-
-        // Optionally show feedback
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${selected.name} added')),
-        );
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Doctor — Create Prescription')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  // Doctor & Patient
-                  TextFormField(
-                    controller: _docNameCtrl,
-                    decoration: const InputDecoration(labelText: 'Doctor name'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter doctor name' : null,
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _patientNameCtrl,
-                    decoration: const InputDecoration(labelText: 'Patient name'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter patient name' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  const Divider(),
-                  const SizedBox(height: 8),
-
-                  // Add Medicine area
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Add Medicine', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(controller: _medNameCtrl, decoration: const InputDecoration(labelText: 'Medicine name')),
-                  TextFormField(controller: _doseCtrl, decoration: const InputDecoration(labelText: 'Dose (e.g., 500mg)')),
-                  TextFormField(controller: _timesCtrl, decoration: const InputDecoration(labelText: 'Times (comma separated, HH:mm)')),
-                  TextFormField(controller: _durationCtrl, decoration: const InputDecoration(labelText: 'Duration (days)')),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _addMedicine,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add Medicine'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _openSearchAndAdd,
-                          icon: const Icon(Icons.search),
-                          label: const Text('Add Medicine (Search)'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Medicines list
-                  if (medicines.isNotEmpty)
-                    Card(
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Medicines added:', style: TextStyle(fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 8),
-                            ...List.generate(medicines.length, (index) {
-                              final m = medicines[index];
-                              return ListTile(
-                                title: Text('${m.name} — ${m.dose.isEmpty ? '(dose not set)' : m.dose}'),
-                                subtitle: Text('${m.times.join(', ')} • ${m.durationDays} days'),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.delete),
-                                  onPressed: () => setState(() {
-                                    medicines.removeAt(index);
-                                  }),
-                                ),
-                              );
-                            }),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                  const SizedBox(height: 12),
-
-                  TextFormField(controller: _notesCtrl, decoration: const InputDecoration(labelText: 'Notes (optional)')),
-                  const SizedBox(height: 20),
-
-                  // Big Row: Search (again) + Generate QR
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _openSearchAndAdd,
-                          icon: const Icon(Icons.search),
-                          label: const Text('Add Medicine (Search)'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _generatePrescription,
-                          icon: const Icon(Icons.qr_code),
-                          label: const Text('Generate QR'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-                ],
+      appBar: AppBar(title: const Text('Create Prescription')),
+      body: Padding(
+        padding: const EdgeInsets.all(12),
+        child: ListView(
+          children: [
+            TextField(
+              controller: _patientIdCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Patient ID',
+                border: OutlineInputBorder(),
               ),
             ),
-          ),
+
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _doseCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Dose (e.g. 500 mg)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _daysCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Duration (days)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            ElevatedButton.icon(
+              icon: const Icon(Icons.add),
+              label: const Text('Add Medicine'),
+              onPressed: _addMedicine,
+            ),
+
+            const SizedBox(height: 20),
+
+            if (_medicines.isNotEmpty)
+              const Text(
+                'Medicines Added',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+
+            ..._medicines.map(
+              (m) => Card(
+                child: ListTile(
+                  title: Text(
+                    '${m.name} — ${m.dose.isEmpty ? '(dose not set)' : m.dose}',
+                  ),
+                  subtitle:
+                      Text('${m.times.join(', ')} • ${m.durationDays} days'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () {
+                      setState(() => _medicines.remove(m));
+                    },
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            TextField(
+              controller: _notesCtrl,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            ElevatedButton(
+              onPressed: _generatePrescription,
+              child: const Text('Generate Prescription QR'),
+            ),
+          ],
         ),
       ),
     );

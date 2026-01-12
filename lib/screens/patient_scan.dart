@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+
 import '../models/prescription.dart';
-import 'package:intl/intl.dart';
 
 class PatientScanScreen extends StatefulWidget {
   const PatientScanScreen({super.key});
@@ -11,74 +12,74 @@ class PatientScanScreen extends StatefulWidget {
 }
 
 class _PatientScanScreenState extends State<PatientScanScreen> {
-  String? error;
-  Prescription? loaded;
-  final MobileScannerController controller = MobileScannerController();
+  Prescription? _loaded;
+  bool _scanned = false;
 
-  void _handleBarcodeCapture(BarcodeCapture capture) {
-    if (capture.barcodes.isEmpty) return;
-    final raw = capture.barcodes.first.rawValue;
-    if (raw == null) return;
+  Future<void> _loadPrescription(String id) async {
+    final snap = await FirebaseFirestore.instance
+        .collection('prescriptions')
+        .doc(id)
+        .get();
 
-    try {
-      final presc = Prescription.fromJsonString(raw);
-      setState(() {
-        loaded = presc;
-        error = null;
-      });
-    } catch (e) {
-      setState(() {
-        error = "Invalid QR or unsupported format";
-      });
+    if (!snap.exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Prescription not found')),
+      );
+      return;
     }
+
+    setState(() {
+      _loaded = Prescription.fromMap(snap.data()!);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Patient — Scan QR')),
-      body: Column(
-        children: [
-          Expanded(
-            flex: 4,
-            child: MobileScanner(
-              controller: controller,
-              onDetect: _handleBarcodeCapture,
-            ),
-          ),
-          Expanded(
-            flex: 5,
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: loaded == null
-                  ? Center(child: Text(error ?? "Scan a prescription QR"))
-                  : _buildPrescription(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+      appBar: AppBar(title: const Text('Scan Prescription')),
+      body: _loaded == null
+          ? MobileScanner(
+              onDetect: (capture) {
+                if (_scanned) return;
+                final barcode = capture.barcodes.first;
+                final id = barcode.rawValue;
+                if (id == null) return;
 
-  Widget _buildPrescription() {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("Patient: ${loaded!.patient['name']}",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          Text("Doctor: ${loaded!.doctor['name']}"),
-          Text("Issued: ${DateFormat.yMMMMd().add_jm().format(loaded!.issuedAt)}"),
-          const SizedBox(height: 12),
-          const Text("Medicines:",
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          ...loaded!.medicines.map((m) => ListTile(
-                title: Text("${m.name} — ${m.dose}"),
-                subtitle:
-                    Text("Times: ${m.times.join(', ')} • ${m.durationDays} days"),
-              )),
-        ],
-      ),
+                _scanned = true;
+                _loadPrescription(id);
+              },
+            )
+          : Padding(
+              padding: const EdgeInsets.all(12),
+              child: ListView(
+                children: [
+                  const Text(
+                    'Prescription',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  ..._loaded!.medicines.map(
+                    (m) => Card(
+                      child: ListTile(
+                        title: Text('${m.name} — ${m.dose}'),
+                        subtitle: Text(
+                          '${m.times.join(', ')} • ${m.durationDays} days',
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  if (_loaded!.notes.isNotEmpty)
+                    Text('Notes: ${_loaded!.notes}'),
+                ],
+              ),
+            ),
     );
   }
 }

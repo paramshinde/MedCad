@@ -1,27 +1,22 @@
-class MedicineModel {
+class Medicine {
   final String id;
   final String name;
-  final String? manufacturer;
-  final double? price;
-  final List<String>? aliases;
+  final String manufacturer;
+  final String saltComposition;
 
-  MedicineModel({
+  Medicine({
     required this.id,
     required this.name,
-    this.manufacturer,
-    this.price,
-    this.aliases,
+    required this.manufacturer,
+    required this.saltComposition,
   });
 
-  factory MedicineModel.fromMap(Map<String, dynamic> data, String id) {
-    return MedicineModel(
+  factory Medicine.fromFirestore(String id, Map<String, dynamic> data) {
+    return Medicine(
       id: id,
       name: data['name'] ?? '',
-      manufacturer: data['manufacturer'],
-      price: data['price'] != null ? (data['price'] as num).toDouble() : null,
-      aliases: (data['aliases'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList(),
+      manufacturer: data['manufacturer'] ?? '',
+      saltComposition: data['salt_composition'] ?? '',
     );
   }
 }
