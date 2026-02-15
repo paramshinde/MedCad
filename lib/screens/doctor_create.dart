@@ -204,7 +204,7 @@ class _DoctorCreateScreenState extends State<DoctorCreateScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0891B2),
                         foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 48),
+                        minimumSize: const Size(0, 48),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -261,7 +261,7 @@ class _DoctorCreateScreenState extends State<DoctorCreateScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0891B2),
                   foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 52),
+                  minimumSize: const Size(0, 52),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

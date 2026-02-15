@@ -95,8 +95,7 @@ class DoctorSearchScreen extends StatelessWidget {
                             icon: Icon(Icons.list_alt_rounded),
                             label: Text('View All Prescriptions'),
                             style: ButtonStyle(
-                              minimumSize: WidgetStatePropertyAll(
-                                  Size(double.infinity, 46)),
+                              minimumSize: WidgetStatePropertyAll(Size(0, 46)),
                             ),
                           ),
                         ],
