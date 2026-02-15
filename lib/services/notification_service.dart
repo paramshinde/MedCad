@@ -1,4 +1,5 @@
 // lib/services/notification_service.dart
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -66,7 +67,61 @@ class NotificationService {
     final now = tz.TZDateTime.now(tz.local);
     var scheduled =
         tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    if (scheduled.isBefore(now)) scheduled = scheduled.add(const Duration(days: 1));
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
     return scheduled;
+  }
+
+  /// Schedules one or more daily reminders for a medicine.
+  ///
+  /// A single [baseId] is expanded with index offsets for each selected time.
+  static Future<void> scheduleDailyReminder({
+    required int baseId,
+    required String title,
+    required String body,
+    required List<TimeOfDay> times,
+  }) async {
+    for (var i = 0; i < times.length; i++) {
+      final time = times[i];
+      var scheduled = tz.TZDateTime(
+        tz.local,
+        tz.TZDateTime.now(tz.local).year,
+        tz.TZDateTime.now(tz.local).month,
+        tz.TZDateTime.now(tz.local).day,
+        time.hour,
+        time.minute,
+      );
+      if (scheduled.isBefore(tz.TZDateTime.now(tz.local))) {
+        scheduled = scheduled.add(const Duration(days: 1));
+      }
+
+      await _plugin.zonedSchedule(
+        baseId + i,
+        title,
+        body,
+        scheduled,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'med_reminders',
+            'Medication Reminders',
+            channelDescription: 'Reminder notifications for medications',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exact,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    }
+  }
+
+  /// Cancels all reminders created from a reminder base id.
+  static Future<void> cancelReminder(
+      {required int baseId, int slots = 4}) async {
+    for (var i = 0; i < slots; i++) {
+      await _plugin.cancel(baseId + i);
+    }
   }
 }

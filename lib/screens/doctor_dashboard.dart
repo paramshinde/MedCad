@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/stat_card.dart';
 
+/// Doctor dashboard with quick actions and summary stats.
 class DoctorDashboard extends StatelessWidget {
   const DoctorDashboard({super.key});
 
@@ -100,6 +101,20 @@ class DoctorDashboard extends StatelessWidget {
                                     context, '/doctor-med-search'),
                                 icon: Icons.search_rounded,
                                 child: const Text('Search Medicines'),
+                              ),
+                              const SizedBox(height: 10),
+                              CustomButton(
+                                onPressed: () => Navigator.pushNamed(
+                                    context, '/doctor-patients'),
+                                icon: Icons.people_alt_rounded,
+                                child: const Text('My Patients'),
+                              ),
+                              const SizedBox(height: 10),
+                              CustomButton(
+                                onPressed: () =>
+                                    Navigator.pushNamed(context, '/analytics'),
+                                icon: Icons.analytics_rounded,
+                                child: const Text('Analytics Dashboard'),
                               ),
                             ],
                           ),

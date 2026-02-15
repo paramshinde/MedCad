@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models/prescription.dart';
 
+/// Displays QR for a saved prescription where QR payload is prescription id only.
 class PrescriptionQrScreen extends StatelessWidget {
   final Prescription prescription;
 
@@ -72,6 +73,7 @@ class PrescriptionQrScreen extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
+                // QR payload intentionally contains only the prescription id.
                 QrImageView(data: prescription.id, size: 220),
                 const SizedBox(height: 20),
                 Text('Prescription ID: ${prescription.id}'),
