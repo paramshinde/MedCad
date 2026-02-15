@@ -10,6 +10,8 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  bool _hasNavigated = false;
+
   @override
   void initState() {
     super.initState();
@@ -42,8 +44,13 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   void _go(String route) {
-    if (!mounted) return;
-    Navigator.pushReplacementNamed(context, route);
+    if (!mounted || _hasNavigated) return;
+    _hasNavigated = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed(route);
+    });
   }
 
   @override
