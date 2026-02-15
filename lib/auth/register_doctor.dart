@@ -1,38 +1,115 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import '../services/auth_service.dart';
 
-class RegisterDoctorScreen extends StatelessWidget {
+class RegisterDoctorScreen extends StatefulWidget {
   const RegisterDoctorScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final nameCtrl = TextEditingController();
-    final emailCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
-    final specCtrl = TextEditingController();
+  State<RegisterDoctorScreen> createState() => _RegisterDoctorScreenState();
+}
 
+class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _specCtrl = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    _specCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _register() async {
+    final name = _nameCtrl.text.trim();
+    final email = _emailCtrl.text.trim();
+    final password = _passCtrl.text;
+    final specialization = _specCtrl.text.trim();
+
+    if (name.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty ||
+        specialization.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Fill all fields.')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await AuthService().registerDoctor(
+        name: name,
+        email: email,
+        password: password,
+        specialization: specialization,
+      );
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      final message = switch (e.code) {
+        'email-already-in-use' =>
+          'This email is already registered. Please log in.',
+        'invalid-email' => 'Invalid email address.',
+        'weak-password' => 'Password is too weak.',
+        _ => e.message ?? 'Registration failed. Please try again.',
+      };
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unexpected error during registration.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Doctor Registration')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
-            TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email')),
-            TextField(controller: passCtrl, decoration: const InputDecoration(labelText: 'Password'), obscureText: true),
-            TextField(controller: specCtrl, decoration: const InputDecoration(labelText: 'Specialization')),
+            TextField(
+              controller: _nameCtrl,
+              decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            TextField(
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            TextField(
+              controller: _passCtrl,
+              decoration: const InputDecoration(labelText: 'Password'),
+              obscureText: true,
+            ),
+            TextField(
+              controller: _specCtrl,
+              decoration: const InputDecoration(labelText: 'Specialization'),
+            ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () async {
-                await AuthService().registerDoctor(
-                  name: nameCtrl.text,
-                  email: emailCtrl.text,
-                  password: passCtrl.text,
-                  specialization: specCtrl.text,
-                );
-                Navigator.pop(context);
-              },
-              child: const Text('Register'),
+              onPressed: _isLoading ? null : _register,
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Register'),
             ),
           ],
         ),

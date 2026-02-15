@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../services/auth_service.dart';
 
 class DoctorDashboard extends StatelessWidget {
@@ -16,9 +17,10 @@ class DoctorDashboard extends StatelessWidget {
             icon: const Icon(Icons.logout),
             onPressed: () async {
               await auth.logout();
+              if (!context.mounted) return;
               Navigator.pushNamedAndRemoveUntil(
                 context,
-                '/login',
+                '/',
                 (_) => false,
               );
             },
@@ -32,25 +34,22 @@ class DoctorDashboard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                'Welcome Doctor 👨‍⚕️',
+                'Welcome Doctor',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 30),
-
               _dashboardButton(
                 context,
                 label: 'Create Prescription',
                 icon: Icons.note_add,
                 route: '/doctor-create',
               ),
-
               _dashboardButton(
                 context,
                 label: 'Search Patient',
                 icon: Icons.search,
                 route: '/doctor-search',
               ),
-
               _dashboardButton(
                 context,
                 label: 'Search Medicine',
