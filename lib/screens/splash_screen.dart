@@ -2,53 +2,55 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../auth/login_screen.dart';
-import 'doctor_dashboard.dart';
-import 'patient_dashboard.dart';
-
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        _go('/login');
+        return;
+      }
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final role = userDoc.data()?['role'] as String?;
+      if (role == 'doctor') {
+        _go('/doctor-dashboard');
+        return;
+      }
+
+      _go('/patient-dashboard');
+    } catch (_) {
+      _go('/login');
+    }
+  }
+
+  void _go(String route) {
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, route);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final user = snapshot.data;
-          if (user == null) {
-            return const LoginScreen();
-          }
-
-          return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            future: FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .get(),
-            builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (snap.hasError) {
-                return const Center(child: Text('Unable to load profile.'));
-              }
-
-              final data = snap.data?.data();
-              final role = data?['role'] as String?;
-
-              if (role == 'doctor') {
-                return const DoctorDashboard();
-              }
-
-              return const PatientDashboard();
-            },
-          );
-        },
+    return const Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(),
       ),
     );
   }

@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../widgets/custom_button.dart';
+import '../widgets/custom_text_field.dart';
 
 class RegisterDoctorScreen extends StatefulWidget {
   const RegisterDoctorScreen({super.key});
@@ -50,8 +52,10 @@ class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
         password: password,
         specialization: specialization,
       );
+
       if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+      Navigator.pushNamedAndRemoveUntil(
+          context, '/doctor-dashboard', (_) => false);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       final message = switch (e.code) {
@@ -61,9 +65,8 @@ class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
         'weak-password' => 'Password is too weak.',
         _ => e.message ?? 'Registration failed. Please try again.',
       };
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -82,34 +85,21 @@ class _RegisterDoctorScreenState extends State<RegisterDoctorScreen> {
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-            TextField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: 'Name'),
-            ),
-            TextField(
+            CustomTextField(controller: _nameCtrl, label: 'Name'),
+            CustomTextField(
               controller: _emailCtrl,
+              label: 'Email',
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
             ),
-            TextField(
-              controller: _passCtrl,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            TextField(
-              controller: _specCtrl,
-              decoration: const InputDecoration(labelText: 'Specialization'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _register,
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Register'),
+            CustomTextField(
+                controller: _passCtrl, label: 'Password', obscureText: true),
+            CustomTextField(controller: _specCtrl, label: 'Specialization'),
+            const SizedBox(height: 8),
+            CustomButton(
+              onPressed: _register,
+              isLoading: _isLoading,
+              icon: Icons.person_add_alt_1_rounded,
+              child: const Text('Register'),
             ),
           ],
         ),

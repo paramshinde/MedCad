@@ -1,7 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../widgets/custom_button.dart';
+import '../widgets/custom_text_field.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -36,8 +39,22 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     try {
       await AuthService().login(email, password);
+
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) {
+        throw FirebaseAuthException(code: 'invalid-credential');
+      }
+
+      final snap =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final role = snap.data()?['role'] as String?;
+
       if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        role == 'doctor' ? '/doctor-dashboard' : '/patient-dashboard',
+        (_) => false,
+      );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       final message = switch (e.code) {
@@ -47,9 +64,8 @@ class _LoginScreenState extends State<LoginScreen> {
         'invalid-credential' => 'Invalid credentials. Please try again.',
         _ => e.message ?? 'Login failed. Please try again.',
       };
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -68,31 +84,26 @@ class _LoginScreenState extends State<LoginScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            TextField(
+            CustomTextField(
               controller: _emailCtrl,
+              label: 'Email',
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
             ),
-            TextField(
+            CustomTextField(
               controller: _passCtrl,
-              decoration: const InputDecoration(labelText: 'Password'),
+              label: 'Password',
               obscureText: true,
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _login,
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Login'),
+            const SizedBox(height: 8),
+            CustomButton(
+              onPressed: _login,
+              isLoading: _isLoading,
+              icon: Icons.login_rounded,
+              child: const Text('Login'),
             ),
+            const SizedBox(height: 8),
             TextButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/register-doctor');
-              },
+              onPressed: () => Navigator.pushNamed(context, '/register-doctor'),
               child: const Text('Register as Doctor'),
             ),
           ],
