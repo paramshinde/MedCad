@@ -14,31 +14,47 @@ class PatientScanScreen extends StatefulWidget {
 class _PatientScanScreenState extends State<PatientScanScreen> {
   Prescription? _loaded;
   bool _isScanning = false;
+  bool _isFetching = false;
   bool _alreadyDetected = false;
 
   Future<void> _loadPrescription(String id) async {
-    final snap = await FirebaseFirestore.instance
-        .collection('prescriptions')
-        .doc(id)
-        .get();
+    try {
+      setState(() => _isFetching = true);
+      final snap = await FirebaseFirestore.instance
+          .collection('prescriptions')
+          .doc(id)
+          .get();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (!snap.exists) {
+      if (!snap.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Prescription not found')),
+        );
+        setState(() {
+          _alreadyDetected = false;
+          _isScanning = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _loaded = Prescription.fromMap(snap.data()!);
+        _isScanning = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Prescription not found')),
+        const SnackBar(
+            content: Text('Unable to fetch prescription right now.')),
       );
       setState(() {
         _alreadyDetected = false;
         _isScanning = false;
       });
-      return;
+    } finally {
+      if (mounted) setState(() => _isFetching = false);
     }
-
-    setState(() {
-      _loaded = Prescription.fromMap(snap.data()!);
-      _isScanning = false;
-    });
   }
 
   void _startScanning() {
@@ -134,7 +150,7 @@ class _PatientScanScreenState extends State<PatientScanScreen> {
                         borderRadius: BorderRadius.circular(14),
                         child: MobileScanner(
                           onDetect: (capture) {
-                            if (_alreadyDetected) return;
+                            if (_alreadyDetected || _isFetching) return;
                             final raw = capture.barcodes.isNotEmpty
                                 ? capture.barcodes.first.rawValue
                                 : null;
@@ -184,8 +200,8 @@ class _PatientScanScreenState extends State<PatientScanScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _isScanning ? null : _startScanning,
-              icon: _isScanning
+              onPressed: (_isScanning || _isFetching) ? null : _startScanning,
+              icon: (_isScanning || _isFetching)
                   ? const SizedBox(
                       width: 18,
                       height: 18,
@@ -193,14 +209,9 @@ class _PatientScanScreenState extends State<PatientScanScreen> {
                           strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.camera_alt_rounded),
-              label: Text(_isScanning ? 'Scanning...' : 'Start Scanning'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0891B2),
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
+              label: Text((_isScanning || _isFetching)
+                  ? 'Scanning...'
+                  : 'Start Scanning'),
             ),
           ),
           const SizedBox(height: 14),
