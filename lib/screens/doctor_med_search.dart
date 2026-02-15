@@ -53,7 +53,6 @@ class _DoctorMedSearchScreenState extends State<DoctorMedSearchScreen> {
               controller: _ctrl,
               focusNode: _focusNode,
               suggestionsCallback: _getSuggestions,
-
               builder: (context, controller, focusNode) {
                 return TextField(
                   controller: controller,
@@ -75,7 +74,6 @@ class _DoctorMedSearchScreenState extends State<DoctorMedSearchScreen> {
                   ),
                 );
               },
-
               itemBuilder: (context, item) {
                 if (item is Medicine) {
                   return ListTile(
@@ -90,9 +88,8 @@ class _DoctorMedSearchScreenState extends State<DoctorMedSearchScreen> {
                     subtitle: Text('RxCUI: ${item.rxCui}'),
                   );
                 }
-                return const SizedBox();
+                return const ListTile(title: Text('Unsupported suggestion'));
               },
-
               onSelected: (item) {
                 setState(() {
                   _selected = item;
@@ -100,28 +97,22 @@ class _DoctorMedSearchScreenState extends State<DoctorMedSearchScreen> {
                 });
                 _focusNode.unfocus();
               },
-
               emptyBuilder: (context) =>
                   const ListTile(title: Text('No matches found')),
-              loadingBuilder: (context) =>
-                  const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+              loadingBuilder: (context) => const Padding(
+                padding: EdgeInsets.all(8),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
               errorBuilder: (context, error) =>
                   ListTile(title: Text('Error: $error')),
             ),
-
             const SizedBox(height: 12),
-
             if (_selected != null)
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.check_circle),
                   title: Text(
-                    _selected is Medicine
-                        ? _selected.name
-                        : _selected.name,
+                    _selected is Medicine ? _selected.name : _selected.name,
                   ),
                   subtitle: Text(
                     _selected is Medicine

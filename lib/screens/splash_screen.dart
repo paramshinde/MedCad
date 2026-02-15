@@ -2,6 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../auth/login_screen.dart';
+import 'doctor_dashboard.dart';
+import 'patient_dashboard.dart';
+
+enum _SplashTarget { login, doctor, patient }
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -10,20 +16,19 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  bool _hasNavigated = false;
+  late final Future<_SplashTarget> _targetFuture;
 
   @override
   void initState() {
     super.initState();
-    _bootstrap();
+    _targetFuture = _resolveTarget();
   }
 
-  Future<void> _bootstrap() async {
+  Future<_SplashTarget> _resolveTarget() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        _go('/login');
-        return;
+        return _SplashTarget.login;
       }
 
       final userDoc = await FirebaseFirestore.instance
@@ -33,32 +38,31 @@ class _SplashScreenState extends State<SplashScreen> {
 
       final role = userDoc.data()?['role'] as String?;
       if (role == 'doctor') {
-        _go('/doctor-dashboard');
-        return;
+        return _SplashTarget.doctor;
       }
-
-      _go('/patient-dashboard');
+      return _SplashTarget.patient;
     } catch (_) {
-      _go('/login');
+      return _SplashTarget.login;
     }
-  }
-
-  void _go(String route) {
-    if (!mounted || _hasNavigated) return;
-    _hasNavigated = true;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(route);
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
+    return FutureBuilder<_SplashTarget>(
+      future: _targetFuture,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        return switch (snapshot.data!) {
+          _SplashTarget.login => const LoginScreen(),
+          _SplashTarget.doctor => const DoctorDashboard(),
+          _SplashTarget.patient => const PatientDashboard(),
+        };
+      },
     );
   }
 }
