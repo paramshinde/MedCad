@@ -32,6 +32,20 @@ class PatientDashboard extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     CustomButton(
+                      onPressed: () =>
+                          Navigator.pushNamed(context, '/patient-create'),
+                      icon: Icons.person_add_alt_1_rounded,
+                      child: const Text('Create Patient'),
+                    ),
+                    const SizedBox(height: 10),
+                    CustomButton(
+                      onPressed: () =>
+                          Navigator.pushNamed(context, '/patient-search'),
+                      icon: Icons.search_rounded,
+                      child: const Text('Search Patients'),
+                    ),
+                    const SizedBox(height: 10),
+                    CustomButton(
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(

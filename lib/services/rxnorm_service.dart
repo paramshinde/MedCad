@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 class RxDrug {
   final String name;
   final String rxCui; // normalized RxCUI (if available)
-  final String tty;   // term type, optional
+  final String tty; // term type, optional
 
   RxDrug({required this.name, required this.rxCui, this.tty = ''});
 
@@ -22,7 +22,8 @@ class RxNormService {
     if (query.trim().isEmpty) return [];
 
     final encoded = Uri.encodeQueryComponent(query);
-    final uri = Uri.parse('$_base/prescribable/findRxcuiByString.json?name=$encoded');
+    final uri =
+        Uri.parse('$_base/prescribable/findRxcuiByString.json?name=$encoded');
 
     try {
       final resp = await http.get(uri).timeout(const Duration(seconds: 8));
@@ -30,7 +31,8 @@ class RxNormService {
         // fallback to /drugs
         return _fallbackDrugs(query, max);
       }
-      final Map<String, dynamic> j = jsonDecode(resp.body) as Map<String, dynamic>;
+      final Map<String, dynamic> j =
+          jsonDecode(resp.body) as Map<String, dynamic>;
       final idGroup = j['idGroup'] as Map<String, dynamic>?;
       if (idGroup == null) return [];
 
@@ -46,7 +48,9 @@ class RxNormService {
       for (var i = 0; i < rxnormIds.length && results.length < max; i++) {
         final id = rxnormIds[i];
         try {
-          final propResp = await http.get(Uri.parse('$_base/rxcui/$id/properties.json')).timeout(const Duration(seconds: 6));
+          final propResp = await http
+              .get(Uri.parse('$_base/rxcui/$id/properties.json'))
+              .timeout(const Duration(seconds: 6));
           if (propResp.statusCode == 200) {
             final p = jsonDecode(propResp.body) as Map<String, dynamic>;
             final props = p['properties'] as Map<String, dynamic>?;
@@ -71,7 +75,8 @@ class RxNormService {
 
   /// Fallback endpoint - returns 'drugGroup' results from /drugs?name=
   static Future<List<RxDrug>> _fallbackDrugs(String query, int max) async {
-    final uri = Uri.parse('$_base/drugs.json?name=${Uri.encodeQueryComponent(query)}');
+    final uri =
+        Uri.parse('$_base/drugs.json?name=${Uri.encodeQueryComponent(query)}');
     try {
       final resp = await http.get(uri).timeout(const Duration(seconds: 8));
       if (resp.statusCode != 200) return [];
@@ -82,7 +87,8 @@ class RxNormService {
       final List<RxDrug> out = [];
 
       for (var cg in concepts) {
-        final members = (cg as Map<String, dynamic>)['conceptProperties'] as List<dynamic>?;
+        final members =
+            (cg as Map<String, dynamic>)['conceptProperties'] as List<dynamic>?;
         if (members == null) continue;
         for (var m in members) {
           final mm = m as Map<String, dynamic>;
@@ -97,5 +103,59 @@ class RxNormService {
     } catch (_) {
       return [];
     }
+  }
+
+  /// Best-effort detailed data fetch from RxNorm by RxCUI.
+  ///
+  /// RxNorm often has sparse human-readable clinical metadata, so this method
+  /// returns a partial map and callers should apply UI fallbacks for missing fields.
+  static Future<Map<String, dynamic>> getMedicineDetailByRxCui(String rxCui) async {
+    final out = <String, dynamic>{};
+    if (rxCui.trim().isEmpty) return out;
+
+    try {
+      final propsResp = await http
+          .get(Uri.parse('$_base/rxcui/$rxCui/properties.json'))
+          .timeout(const Duration(seconds: 8));
+      if (propsResp.statusCode == 200) {
+        final map = jsonDecode(propsResp.body) as Map<String, dynamic>;
+        final props = map['properties'] as Map<String, dynamic>?;
+        if (props != null) {
+          out['brandName'] = props['name']?.toString() ?? '';
+          out['dosageForm'] = props['tty']?.toString() ?? '';
+        }
+      }
+    } catch (_) {
+      // Non-blocking by design.
+    }
+
+    try {
+      final allRelatedResp = await http
+          .get(Uri.parse('$_base/rxcui/$rxCui/allrelated.json'))
+          .timeout(const Duration(seconds: 8));
+      if (allRelatedResp.statusCode == 200) {
+        final map = jsonDecode(allRelatedResp.body) as Map<String, dynamic>;
+        final relatedGroup = map['allRelatedGroup'] as Map<String, dynamic>?;
+        final conceptGroup = relatedGroup?['conceptGroup'] as List<dynamic>? ?? const [];
+        final names = <String>[];
+        for (final cg in conceptGroup) {
+          final props = (cg as Map<String, dynamic>)['conceptProperties'] as List<dynamic>?;
+          if (props == null) continue;
+          for (final p in props) {
+            final name = (p as Map<String, dynamic>)['name']?.toString() ?? '';
+            if (name.isNotEmpty) names.add(name);
+            if (names.length >= 3) break;
+          }
+          if (names.length >= 3) break;
+        }
+        if (names.isNotEmpty) {
+          out['indications'] = 'Related forms: ${names.join(', ')}';
+        }
+      }
+    } catch (_) {
+      // Non-blocking by design.
+    }
+
+    return out;
   }
 }
