@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../services/saved_medicine_service.dart';
+import '../../services/firestore_write_service.dart';
 
 /// QR scanner screen for patients to fetch and save prescription medicines.
 class ScanQrScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class ScanQrScreen extends StatefulWidget {
 
 class _ScanQrScreenState extends State<ScanQrScreen> {
   final _savedService = SavedMedicineService();
+  final _writeService = FirestoreWriteService();
   Map<String, dynamic>? _prescription;
   String? _prescriptionId;
   bool _isScanning = false;
@@ -83,10 +85,16 @@ class _ScanQrScreenState extends State<ScanQrScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Medicine saved to your list.')),
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to save medicine.')),
+        SnackBar(
+          content: Text(
+            _writeService.isQuotaExceeded(e)
+                ? 'Quota exceeded'
+                : 'Failed to save medicine.',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _busy = false);

@@ -12,7 +12,7 @@ class MedicineFirestoreService {
 
     final snap = await _col
         .where('name_lower', isGreaterThanOrEqualTo: q)
-        .where('name_lower', isLessThan: q + '\uf8ff')
+        .where('name_lower', isLessThan: '$q\uf8ff')
         .limit(20)
         .get();
 
@@ -26,7 +26,8 @@ class MedicineFirestoreService {
     final normalized = name.trim().toLowerCase();
     if (normalized.isEmpty) return null;
 
-    final snap = await _col.where('name_lower', isEqualTo: normalized).limit(1).get();
+    final snap =
+        await _col.where('name_lower', isEqualTo: normalized).limit(1).get();
     if (snap.docs.isEmpty) return null;
     final doc = snap.docs.first;
     return Medicine.fromFirestore(doc.id, doc.data());

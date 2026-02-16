@@ -5,7 +5,7 @@ import '../../utils/app_constants.dart';
 
 /// First-launch role chooser screen.
 ///
-/// Stores the role in SharedPreferences and redirects to role-specific dashboard.
+/// Stores the role in SharedPreferences and redirects to role-specific login.
 class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({super.key});
 
@@ -23,9 +23,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       await prefs.setString(AppConstants.userRoleKey, role);
 
       if (!mounted) return;
-      final route = role == AppConstants.roleDoctor
-          ? '/doctorDashboard'
-          : '/patientDashboard';
+      final route =
+          role == AppConstants.roleDoctor ? '/login' : '/patientLogin';
       Navigator.pushNamedAndRemoveUntil(context, route, (_) => false);
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -58,8 +57,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                         : () => _selectRole(AppConstants.roleDoctor),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 18),
-                      child: Text('????? I am a Doctor',
-                          style: TextStyle(fontSize: 18)),
+                      child:
+                          Text('I am a Doctor', style: TextStyle(fontSize: 18)),
                     ),
                   ),
                 ),
@@ -72,7 +71,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                         : () => _selectRole(AppConstants.rolePatient),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 18),
-                      child: Text('?? I am a Patient',
+                      child: Text('I am a Patient',
                           style: TextStyle(fontSize: 18)),
                     ),
                   ),

@@ -109,7 +109,8 @@ class RxNormService {
   ///
   /// RxNorm often has sparse human-readable clinical metadata, so this method
   /// returns a partial map and callers should apply UI fallbacks for missing fields.
-  static Future<Map<String, dynamic>> getMedicineDetailByRxCui(String rxCui) async {
+  static Future<Map<String, dynamic>> getMedicineDetailByRxCui(
+      String rxCui) async {
     final out = <String, dynamic>{};
     if (rxCui.trim().isEmpty) return out;
 
@@ -136,10 +137,12 @@ class RxNormService {
       if (allRelatedResp.statusCode == 200) {
         final map = jsonDecode(allRelatedResp.body) as Map<String, dynamic>;
         final relatedGroup = map['allRelatedGroup'] as Map<String, dynamic>?;
-        final conceptGroup = relatedGroup?['conceptGroup'] as List<dynamic>? ?? const [];
+        final conceptGroup =
+            relatedGroup?['conceptGroup'] as List<dynamic>? ?? const [];
         final names = <String>[];
         for (final cg in conceptGroup) {
-          final props = (cg as Map<String, dynamic>)['conceptProperties'] as List<dynamic>?;
+          final props = (cg as Map<String, dynamic>)['conceptProperties']
+              as List<dynamic>?;
           if (props == null) continue;
           for (final p in props) {
             final name = (p as Map<String, dynamic>)['name']?.toString() ?? '';

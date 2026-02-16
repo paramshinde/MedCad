@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'firestore_write_service.dart';
+
 /// Service for storing and managing medicines saved by a patient.
 class SavedMedicineService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirestoreWriteService _writeService = FirestoreWriteService();
 
   CollectionReference<Map<String, dynamic>> _items(String patientId) {
     return _db
@@ -20,14 +23,14 @@ class SavedMedicineService {
     required int durationDays,
     required String prescriptionId,
   }) async {
-    await _items(patientId).add({
-      'medicineName': medicineName,
-      'dose': dose,
-      'frequency': frequency,
-      'durationDays': durationDays,
-      'prescriptionId': prescriptionId,
-      'savedAt': FieldValue.serverTimestamp(),
-    });
+    await _writeService.saveMedicine(
+      patientId: patientId,
+      medicineName: medicineName,
+      dose: dose,
+      frequency: frequency,
+      durationDays: durationDays,
+      prescriptionId: prescriptionId,
+    );
   }
 
   /// Streams saved medicines for a patient ordered by latest saved item first.

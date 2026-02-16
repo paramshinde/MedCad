@@ -44,10 +44,13 @@ class _DoctorMedSearchScreenState extends State<DoctorMedSearchScreen> {
     RxDrug? rx;
 
     if (selected is Medicine) {
-      fromFirestore = await _firestoreService.getMedicineByNameExact(selected.name) ?? selected;
+      fromFirestore =
+          await _firestoreService.getMedicineByNameExact(selected.name) ??
+              selected;
     } else if (selected is RxDrug) {
       rx = selected;
-      fromFirestore = await _firestoreService.getMedicineByNameExact(selected.name);
+      fromFirestore =
+          await _firestoreService.getMedicineByNameExact(selected.name);
     } else {
       return null;
     }

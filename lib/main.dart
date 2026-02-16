@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +15,8 @@ import 'screens/doctor_med_search.dart';
 import 'screens/doctor_search.dart';
 import 'screens/patient/emergency_card.dart';
 import 'screens/patient/patient_dashboard.dart';
+import 'screens/patient/patient_login.dart';
+import 'screens/patient/patient_register.dart';
 import 'screens/patient/prescription_history.dart';
 import 'screens/patient/saved_medicines_screen.dart';
 import 'screens/patient/scan_qr.dart';
@@ -31,9 +34,9 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Enable offline persistence for Firestore cache-first behavior.
+  // Disable persistence to avoid offline retry loops when quotas are tight.
   FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
+    persistenceEnabled: false,
   );
 
   // Initialize local notifications for medicine reminders.
@@ -113,6 +116,8 @@ class MedCodeApp extends StatelessWidget {
         '/': (context) => const _StartupGate(),
         '/role': (context) => const RoleSelectionScreen(),
         '/login': (context) => const LoginScreen(),
+        '/patientLogin': (context) => const PatientLoginScreen(),
+        '/patientRegister': (context) => const PatientRegisterScreen(),
         '/register-doctor': (context) => const RegisterDoctorScreen(),
         '/doctorDashboard': (context) => const DoctorDashboard(),
         '/doctor-dashboard': (context) => const DoctorDashboard(),
@@ -165,9 +170,12 @@ class _StartupGateState extends State<_StartupGate> {
         if (role == null) {
           return const RoleSelectionScreen();
         }
+        final user = FirebaseAuth.instance.currentUser;
         if (role == AppConstants.roleDoctor) {
+          if (user == null) return const LoginScreen();
           return const DoctorDashboard();
         }
+        if (user == null) return const PatientLoginScreen();
         return const PatientDashboardScreen();
       },
     );

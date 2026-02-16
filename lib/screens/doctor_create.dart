@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/prescription.dart';
+import '../services/firestore_write_service.dart';
 import 'doctor_med_search.dart';
 import 'prescription_qr.dart';
 
@@ -20,6 +22,8 @@ class _DoctorCreateScreenState extends State<DoctorCreateScreen> {
   final _notesCtrl = TextEditingController();
 
   final List<_EditableMedicine> _medicines = [];
+  final FirestoreWriteService _writeService = FirestoreWriteService();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -111,11 +115,23 @@ class _DoctorCreateScreenState extends State<DoctorCreateScreen> {
       medicines: medicines,
       notes: noteBuffer.toString().trim(),
     );
+    final doctorId = FirebaseAuth.instance.currentUser?.uid;
+    final saveFuture = _writeService.createPrescription(
+      prescription: prescription,
+      doctorId: doctorId,
+    );
+    setState(() => _isLoading = true);
+    saveFuture.whenComplete(() {
+      if (mounted) setState(() => _isLoading = false);
+    });
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => PrescriptionQrScreen(prescription: prescription),
+        builder: (_) => PrescriptionQrScreen(
+          prescriptionId: prescription.id,
+          saveFuture: saveFuture,
+        ),
       ),
     );
   }
@@ -255,9 +271,20 @@ class _DoctorCreateScreenState extends State<DoctorCreateScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _generatePrescription,
-                icon: const Icon(Icons.qr_code_2_rounded),
-                label: const Text('Generate Prescription QR'),
+                onPressed: _isLoading ? null : _generatePrescription,
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.qr_code_2_rounded),
+                label: Text(_isLoading
+                    ? 'Saving Prescription...'
+                    : 'Generate Prescription QR'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0891B2),
                   foregroundColor: Colors.white,

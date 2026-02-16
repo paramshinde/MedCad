@@ -3,8 +3,30 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 /// Timeline view for patient prescription history grouped by date.
-class PrescriptionHistoryScreen extends StatelessWidget {
+class PrescriptionHistoryScreen extends StatefulWidget {
   const PrescriptionHistoryScreen({super.key});
+
+  @override
+  State<PrescriptionHistoryScreen> createState() =>
+      _PrescriptionHistoryScreenState();
+}
+
+class _PrescriptionHistoryScreenState extends State<PrescriptionHistoryScreen> {
+  String? _patientId;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _prescriptionStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _patientId = FirebaseAuth.instance.currentUser?.uid;
+    if (_patientId != null) {
+      _prescriptionStream = FirebaseFirestore.instance
+          .collection('prescriptions')
+          .where('patientId', isEqualTo: _patientId)
+          .orderBy('createdAt', descending: true)
+          .snapshots();
+    }
+  }
 
   String _dayKey(DateTime date) {
     return '${date.year.toString().padLeft(4, '0')}-'
@@ -14,20 +36,14 @@ class PrescriptionHistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final patientId = FirebaseAuth.instance.currentUser?.uid;
-
     return Scaffold(
       appBar: AppBar(title: const Text('Prescription History')),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: patientId == null
+        child: _patientId == null
             ? const Center(child: Text('Please log in to view history.'))
             : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: FirebaseFirestore.instance
-                    .collection('prescriptions')
-                    .where('patientId', isEqualTo: patientId)
-                    .orderBy('createdAt', descending: true)
-                    .snapshots(),
+                stream: _prescriptionStream,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());

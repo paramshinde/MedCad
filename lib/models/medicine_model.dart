@@ -34,8 +34,15 @@ class Medicine {
     final salt = (data['salt_composition'] as String?) ?? '';
     final shortComp = (data['short_composition'] as String?) ?? '';
     final sideEffectsRaw = (data['side_effects'] as List<dynamic>?) ?? const [];
-    final warningsRaw =
-        (data['warnings'] as String?) ?? (data['drug_interactions'] as String?) ?? '';
+    final warningsValue = data['warnings'];
+    final interactionsValue = data['drug_interactions'];
+    final warningsRaw = warningsValue is String
+        ? warningsValue
+        : interactionsValue is String
+            ? interactionsValue
+            : interactionsValue is List
+                ? interactionsValue.join(', ')
+                : '';
 
     return Medicine(
       id: id,
@@ -49,7 +56,8 @@ class Medicine {
       manufacturer: (data['manufacturer'] as String?) ?? 'Not available',
       saltComposition: salt,
       indications: (data['indications'] as String?) ?? 'Not available',
-      sideEffects: sideEffectsRaw.map((e) => e.toString()).toList(growable: false),
+      sideEffects:
+          sideEffectsRaw.map((e) => e.toString()).toList(growable: false),
       warnings: warningsRaw.isNotEmpty ? warningsRaw : 'Not available',
       contraindications:
           (data['contraindications'] as String?) ?? 'Not available',

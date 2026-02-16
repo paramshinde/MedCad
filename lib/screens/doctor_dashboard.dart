@@ -33,8 +33,7 @@ class DoctorDashboard extends StatelessWidget {
             onPressed: () async {
               await auth.logout();
               if (!context.mounted) return;
-              Navigator.pushNamedAndRemoveUntil(
-                  context, '/login', (_) => false);
+              Navigator.pushNamedAndRemoveUntil(context, '/role', (_) => false);
             },
           ),
         ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../services/auth_service.dart';
 import '../../widgets/custom_button.dart';
 
 /// Patient dashboard with quick access to core patient workflows.
@@ -8,8 +9,21 @@ class PatientDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = AuthService();
     return Scaffold(
-      appBar: AppBar(title: const Text('Patient Dashboard')),
+      appBar: AppBar(
+        title: const Text('Patient Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await auth.logout();
+              if (!context.mounted) return;
+              Navigator.pushNamedAndRemoveUntil(context, '/role', (_) => false);
+            },
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView(
