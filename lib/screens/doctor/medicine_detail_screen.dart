@@ -36,7 +36,7 @@ class MedicineDetailScreen extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(context, medicine);
+                  Navigator.of(context).pop<Medicine>(medicine);
                 },
                 child: const Text("Use This Medicine"),
               ),

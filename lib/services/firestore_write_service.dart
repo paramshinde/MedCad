@@ -18,14 +18,44 @@ class FirestoreWriteService {
   Future<void> createPrescription({
     required Prescription prescription,
     required String? doctorId,
+    String? doctorName,
+    String? doctorEmail,
+    String? patientName,
+    int? patientAge,
   }) {
     return _withRetry(() async {
+      String? resolvedDoctorName = doctorName;
+      String? resolvedDoctorEmail = doctorEmail;
+      if (doctorId != null &&
+          (resolvedDoctorName == null || resolvedDoctorEmail == null)) {
+        final doctorSnap = await _db.collection('users').doc(doctorId).get();
+        final data = doctorSnap.data();
+        if (data != null) {
+          resolvedDoctorName ??= (data['name'] as String?)?.trim();
+          resolvedDoctorEmail ??= (data['email'] as String?)?.trim();
+        }
+      }
+
       final batch = _db.batch();
       final docRef = _db.collection('prescriptions').doc(prescription.id);
       batch.set(docRef, {
         ...prescription.toMap(),
         'doctorId': doctorId,
         'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      final dashboardRef =
+          _db.collection('prescription_dashboard').doc(prescription.id);
+      batch.set(dashboardRef, {
+        'prescriptionId': prescription.id,
+        'createdAt': FieldValue.serverTimestamp(),
+        'doctorId': doctorId,
+        'doctorName': resolvedDoctorName ?? '',
+        'doctorEmail': resolvedDoctorEmail ?? '',
+        'patientId': prescription.patientId,
+        'patientName': patientName ?? '',
+        'patientAge': patientAge,
+        'medicineList': prescription.medicines.map((m) => m.toMap()).toList(),
       });
       await batch.commit();
     });

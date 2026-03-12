@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/medicine_model.dart';
 import '../models/prescription.dart';
 import '../services/firestore_write_service.dart';
 import 'doctor_med_search.dart';
@@ -36,14 +37,14 @@ class _DoctorCreateScreenState extends State<DoctorCreateScreen> {
   }
 
   Future<void> _addMedicine() async {
-    final selected = await Navigator.push<dynamic>(
+    final Medicine? selected = await Navigator.push<Medicine?>(
       context,
       MaterialPageRoute(builder: (_) => const DoctorMedSearchScreen()),
     );
 
     if (selected == null) return;
 
-    final String medName = (selected.name as String?)?.trim() ?? '';
+    final String medName = _bestMedicineName(selected);
     if (medName.isEmpty) return;
 
     setState(() {
@@ -57,6 +58,21 @@ class _DoctorCreateScreenState extends State<DoctorCreateScreen> {
         ),
       );
     });
+  }
+
+  String _bestMedicineName(Medicine medicine) {
+    final name = medicine.name.trim();
+    if (name.isNotEmpty) return name;
+    final brand = medicine.brandName.trim();
+    if (_isUsefulLabel(brand)) return brand;
+    final generic = medicine.genericName.trim();
+    if (_isUsefulLabel(generic)) return generic;
+    return '';
+  }
+
+  bool _isUsefulLabel(String value) {
+    final v = value.trim();
+    return v.isNotEmpty && v.toLowerCase() != 'not available';
   }
 
   void _removeMedicine(String id) {
@@ -116,9 +132,15 @@ class _DoctorCreateScreenState extends State<DoctorCreateScreen> {
       notes: noteBuffer.toString().trim(),
     );
     final doctorId = FirebaseAuth.instance.currentUser?.uid;
+    final doctorEmail = FirebaseAuth.instance.currentUser?.email;
+    final patientName = _patientNameCtrl.text.trim();
+    final patientAge = int.tryParse(_patientAgeCtrl.text.trim());
     final saveFuture = _writeService.createPrescription(
       prescription: prescription,
       doctorId: doctorId,
+      doctorEmail: doctorEmail,
+      patientName: patientName,
+      patientAge: patientAge,
     );
     setState(() => _isLoading = true);
     saveFuture.whenComplete(() {

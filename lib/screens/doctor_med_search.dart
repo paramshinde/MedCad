@@ -109,7 +109,7 @@ class _DoctorMedSearchScreenState extends State<DoctorMedSearchScreen> {
       );
 
       if (!mounted || selectedMedicine == null) return;
-      Navigator.pop(context, selectedMedicine);
+      Navigator.of(context).pop<Medicine>(selectedMedicine);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
